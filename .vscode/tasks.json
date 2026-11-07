@@ -6,22 +6,99 @@
       "type": "process",
       "command": "make",
       "args": [],
-      "options": { "cwd": "${workspaceFolder}" },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
       "windows": {
         "command": "powershell.exe",
-        "args": ["-NoProfile", "-File", "${workspaceFolder}/build.ps1"]
+        "args": [
+          "-NoProfile",
+          "-File",
+          "${workspaceFolder}/build.ps1"
+        ]
       },
-      "group": { "kind": "build", "isDefault": true },
-      "problemMatcher": ["$gcc"]
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": [
+        "$gcc"
+      ]
     },
     {
       "label": "Pizza: Run",
       "type": "process",
       "command": "${workspaceFolder}/build/pizza-ordering-system",
-      "windows": { "command": "${workspaceFolder}/build/pizza-ordering-system.exe" },
-      "options": { "cwd": "${workspaceFolder}" },
+      "windows": {
+        "command": "${workspaceFolder}/build/pizza-ordering-system.exe"
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
       "dependsOn": "Pizza: Build",
       "problemMatcher": []
+    },
+    {
+      "label": "Pizza: Build Demo",
+      "type": "process",
+      "command": "make",
+      "args": [
+        "build/pizza-demo"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "windows": {
+        "command": "powershell.exe",
+        "args": [
+          "-NoProfile",
+          "-File",
+          "${workspaceFolder}/build.ps1",
+          "-Mode",
+          "demo"
+        ]
+      },
+      "problemMatcher": [
+        "$gcc"
+      ]
+    },
+    {
+      "label": "Pizza: Demo",
+      "type": "process",
+      "command": "${workspaceFolder}/build/pizza-demo",
+      "windows": {
+        "command": "${workspaceFolder}/build/pizza-demo.exe"
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "dependsOn": "Pizza: Build Demo",
+      "problemMatcher": []
+    },
+    {
+      "label": "Pizza: Test",
+      "type": "process",
+      "command": "make",
+      "args": [
+        "test"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "windows": {
+        "command": "powershell.exe",
+        "args": [
+          "-NoProfile",
+          "-File",
+          "${workspaceFolder}/build.ps1",
+          "-Mode",
+          "test"
+        ]
+      },
+      "problemMatcher": [
+        "$gcc"
+      ],
+      "group": "test"
     }
   ]
 }

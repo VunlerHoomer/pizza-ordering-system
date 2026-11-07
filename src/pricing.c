@@ -10,3 +10,9 @@ AppStatus pricing_quote(int crust_id, int size_id, int topping_id, Money *out_pr
     (void)topping_id;
     return APP_NOT_IMPLEMENTED;
 }
+
+AppStatus pricing_manage(void)
+{
+    /* TODO C: implement price editing. */
+    return APP_NOT_IMPLEMENTED;
+}

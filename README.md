@@ -1,56 +1,75 @@
 # Pizza Ordering System
 
-SOE103 2026–27 五人小组项目。语言：C11；界面：控制台。
+SOE103 2026–27 五人小组项目，C11 控制台程序。
 
-**当前状态：可编译的协作骨架。** 已实现开发菜单、模块入口和基础输入校验。
-注册、登录、披萨定价、下单、充值、文件保存、销售统计尚未实现；所有业务入口明确返回未实现。
+**当前版本：成员 A 框架已实现，B–E 业务功能待接入。**
 
-## 在 VS Code 中开始
+已实现顾客/店长菜单、登录结果校验、会话与退出登录、12 个操作的角色校验及模块分发、
+整数/文本/金额/确认输入、启动加载与退出保存流程、错误提示、VS Code 构建和回归测试。
+真实注册/身份验证、菜单数据、订单/余额和存储/统计仍由 B–E 实现，返回明确的“暂未提供”状态。
 
-打开本文件所在的 `pizza-ordering-system` 文件夹。
+## 在 VS Code 中使用
 
-- `Cmd+Shift+B`（Windows：`Ctrl+Shift+B`）：编译。
-- 命令面板 → `Tasks: Run Task` → `Pizza: Run`：编译并运行。
-- 推荐安装工作区提示的 Microsoft C/C++ 扩展；命令行编译不依赖它。
+打开本项目文件夹：
 
-macOS / Linux 终端：
+- `Cmd+Shift+B`（Windows：`Ctrl+Shift+B`）：构建正常程序。
+- 命令面板 → `Tasks: Run Task` → `Pizza: Run`：运行正常程序。
+- `Pizza: Demo`：演示 A 的两种角色菜单，使用独立的测试替身。
+- `Pizza: Test`：运行 A 的自动化测试（需要 Python 3）。
+
+macOS / Linux（需要 C 编译器与 Make）：
 
 ```sh
-make
 make run
+make demo
+make test
 ```
 
-需要 C 编译器和 Make。macOS 原生编译结果在 `build/pizza-ordering-system`，不是 Windows `.exe`。
+正常程序：`build/pizza-ordering-system`。独立演示：`build/pizza-demo`。
+**演示账户只在演示程序中生效，不保存数据，不产生真实订单或扣款。**
 
-Windows：安装 GCC（如 MinGW-w64）并加入 PATH，在 PowerShell 运行：
+| 演示角色 | 账号 | 密码 |
+|---|---|---|
+| 顾客 | 1001 | customer-demo |
+| 店长 | 9001 | manager-demo |
+
+Windows（需要 GCC/MinGW-w64；测试另需 Python 3）：
 
 ```powershell
 ./build.ps1
 ./build/pizza-ordering-system.exe
+./build.ps1 -Mode demo
+./build/pizza-demo.exe
+./build.ps1 -Mode test
 ```
 
-Windows 脚本和任务已配置，但仍需在 Windows 实机验证；最终提交必须包含经过验证的 `.exe`。
+Windows 脚本和任务已配置，仍需 Windows 实机验证。Mac 原生构建不是 Windows `.exe`。
+最终提交的 `.exe` 应包含全组完成的真实业务功能，不能拿演示程序代替。
 
-## 目录与分工
+## 五人代码归属
 
 | 成员 | 主要文件 | 工作 |
 |---|---|---|
-| A | `src/main.c`、`ui.c`、`input.c` | 框架、输入、整合与构建 |
-| B | `src/account.c` | 账户、登录、顾客管理 |
-| C | `src/menu.c`、`pricing.c` | 菜单管理和价格计算 |
-| D | `src/order.c`、`wallet.c` | 订单、充值、扣款、历史 |
-| E | `src/storage.c`、`stats.c` | 文件存储和销售统计 |
+| A | `main.c`、`ui.c`、`app.c`、`input.c`、构建脚本 | 框架、身份状态、权限、输入、整合 |
+| B | `account.c` | 注册、真实身份验证、顾客资料管理 |
+| C | `menu.c`、`pricing.c` | 菜单和价格 |
+| D | `order.c`、`wallet.c` | 订单、充值、扣款、历史 |
+| E | `storage.c`、`stats.c` | 文件存储和销售统计 |
 
-各模块公开接口放在 `include/`，共同类型放在 `include/types.h`。
-当前 `*_demo()` 仅用于验证模块可以一起编译；正式业务接口需共同商定。
+接口在 `include/`。A 已给 B–E 增加可编译的接入函数占位；这些函数没有业务实现。
+`tests/demo_modules.c` 只能用于演示/测试，不属于实际业务实现。
 
-## 协作与文档
+## 文档
 
+- [成员 A 交付范围与接入步骤](docs/MEMBER_A.md)
+- [操作说明](docs/MANUAL.md)
+- [接口与数据约定](docs/INTERFACES.md)
+- [Problem Specification 报告草稿](docs/PROBLEM_SPECIFICATION.md)
+- [系统结构及程序流程](docs/ARCHITECTURE.md)
+- [A 的测试记录](tests/MEMBER_A_RESULTS.md)
 - [五人分工与时间表](docs/TEAM_PLAN.md)
 - [GitHub 同步操作](docs/COLLABORATION.md)
-- [接口与数据约定](docs/INTERFACES.md)
-- [报告模板](docs/REPORT_OUTLINE.md)
-- [测试记录模板](tests/TEST_PLAN.md)
+- [全组报告模板](docs/REPORT_OUTLINE.md)
 
-正式任务书截止时间：2026-12-13 23:59。公告截图年份有冲突，请向老师核实。
-完整交付：PDF 报告、`.c/.h`、Windows `.exe`、所需数据、操作说明、全员签名贡献表。
+正式任务书截止时间：2026-12-13 23:59；公告截图年份有冲突，请向老师核实。
+最终交付包括 PDF 报告、源码、Windows `.exe`、数据、操作说明、全员签名贡献表。
