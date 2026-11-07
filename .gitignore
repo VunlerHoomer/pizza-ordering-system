@@ -1,0 +1,13 @@
+# Build output and personal runtime data
+/build/
+/data/runtime/
+*.o
+*.exe
+*.dSYM/
+.DS_Store
+.env
+.env.*
+!.env.example
+*.log
+*.zip
+*.rar
