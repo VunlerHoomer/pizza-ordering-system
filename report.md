@@ -5,6 +5,8 @@ Group members: 待填写五位成员的姓名和学号。
 这是全组报告的草稿。已写的功能目标不代表这些功能已经全部实现。
 完成各模块后再补充实际设计、截图和测试结果，最后导出 PDF。
 
+最新实施计划见 [PRD.md](PRD.md)。PRD 中的知识范围调整和业务设计是待实现方案；本报告对现有代码与旧测试的描述保留，不将计划当成已完成结果。
+
 ## 1. Problem Specification（A）
 
 A pizza shop needs a program for an in-store ordering terminal. Customers should be able to
