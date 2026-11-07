@@ -1,20 +1,25 @@
-/* 成员 E：读写文件和销售统计。文件格式需要和 B、C、D 一起确定。 */
+/* 成员 E：文件读写和统计仍待实现，不能用假成功让程序继续。 */
 #include <stdio.h>
 #include "project.h"
 
-int loadData(void)
+int loadData(struct ShopData *data)
 {
-    /* TODO：读取账户、菜单和订单。成功返回 1，错误返回 0。 */
-    return -1;  /* -1 只用于表示当前还没有实现文件读取。 */
+    if (data == NULL) { return 0; }
+    /* TODO：加载并校验 shop.txt，全部成功才返回 1。 */
+    printf("File loading has not been implemented yet.\n");
+    return 0;
 }
 
-int saveData(void)
+int saveData(const struct ShopData *data)
 {
-    /* TODO：保存数据，检查文件写入和关闭是否成功。 */
-    return 0;  /* 没有真正保存时不能返回 1。 */
+    if (data == NULL) { return 0; }
+    /* TODO：先备份再写文件。只有确实保存成功才返回 1。 */
+    printf("File saving has not been implemented yet.\n");
+    return 0;
 }
 
-void showStatistics(void)
+void showStatistics(const struct ShopData *data)
 {
+    if (data == NULL) { return; }
     printf("Sales statistics are not available yet.\n");
 }

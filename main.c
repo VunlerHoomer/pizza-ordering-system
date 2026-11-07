@@ -3,7 +3,7 @@
 #include "project.h"
 
 /* 返回账号表示登录成功，0 表示取消或失败，-1 表示输入结束。 */
-static int login(int role)
+static int login(const struct ShopData *data, int role)
 {
     int accountId;
     char password[32];
@@ -19,8 +19,8 @@ static int login(int role)
         return 0;
     }
 
-    /* 选择了店长入口不代表有权限，必须由 B 核对真实角色。 */
-    if (checkLogin(accountId, password, role) == 1) {
+    /* 选择店长入口不代表有权限，必须由 B 核对真实角色。 */
+    if (checkLogin(data, accountId, password, role) == 1) {
         printf("Login successful.\n");
         return accountId;
     }
@@ -28,10 +28,10 @@ static int login(int role)
     return 0;
 }
 
-/* 返回 1 表示退出登录，返回 0 表示输入结束。 */
-static int customerMenu(int customerId)
+/* 菜单返回：1 退出登录，0 输入结束，-1 保存失败。 */
+static int customerMenu(struct ShopData *data, int customerId)
 {
-    int choice;
+    int choice, result;
 
     while (1) {
         printf("\n--- Customer %d ---\n", customerId);
@@ -41,23 +41,27 @@ static int customerMenu(int customerId)
         if (choice == -1) {
             return 0;
         }
+        result = 0;
         switch (choice) {
-            case 1: showPizzaMenu(); break;
-            case 2: placeOrder(customerId); break;
-            case 3: showOrderHistory(customerId); break;
-            case 4: depositMoney(customerId); break;
-            case 5: showCustomer(customerId); break;
-            case 6: editCustomer(customerId); break;
+            case 1: showPizzaMenu(data); break;
+            case 2: result = placeOrder(data, customerId); break;
+            case 3: showOrderHistory(data, customerId); break;
+            case 4: result = depositMoney(data, customerId); break;
+            case 5: showCustomer(data, customerId); break;
+            case 6: result = editCustomer(data, customerId); break;
             case 0:
                 printf("Logged out.\n");
                 return 1;
         }
+        if (result == -1) {
+            return -1;            /* 交给 main 退出，不能再进行下一笔操作。 */
+        }
     }
 }
 
-static int managerMenu(void)
+static int managerMenu(struct ShopData *data)
 {
-    int choice;
+    int choice, result;
 
     while (1) {
         printf("\n--- Shop manager ---\n");
@@ -67,58 +71,65 @@ static int managerMenu(void)
         if (choice == -1) {
             return 0;
         }
+        result = 0;
         switch (choice) {
-            case 1: editPizzaMenu(); break;
-            case 2: editPrices(); break;
-            case 3: manageCustomer(1); break;
-            case 4: manageCustomer(2); break;
-            case 5: manageCustomer(3); break;
-            case 6: showStatistics(); break;
+            case 1: result = editPizzaMenu(data); break;
+            case 2: result = editPrices(data); break;
+            case 3: result = manageCustomer(data, 1); break;
+            case 4: result = manageCustomer(data, 2); break;
+            case 5: result = manageCustomer(data, 3); break;
+            case 6: showStatistics(data); break;
             case 0:
                 printf("Logged out.\n");
                 return 1;
+        }
+        if (result == -1) {
+            return -1;
         }
     }
 }
 
 int main(void)
 {
-    int choice;
-    int accountId;
+    struct ShopData data = {0};
+    int choice, accountId;
     int running = 1;
-    int loaded;
+    int result = 0;
 
-    loaded = loadData();
-    if (loaded == 0) {
-        printf("Cannot load data. The program will close to avoid overwriting it.\n");
+    if (loadData(&data) != 1) {
+        printf("Cannot load data. The program will close without saving.\n");
         return 1;
-    }
-    if (loaded == -1) {
-        printf("File saving is not available in this unfinished version.\n");
     }
 
     while (running) {
         printf("\n=== Pizza Ordering System ===\n");
         printf("1. Customer login\n2. Register\n3. Manager login\n0. Exit\n");
         choice = readInt("Choice: ", 0, 3);
+        result = 0;
         switch (choice) {
             case 1:
-                accountId = login(CUSTOMER_ROLE);
+                accountId = login(&data, CUSTOMER_ROLE);
                 if (accountId == -1) {
                     running = 0;
                 } else if (accountId > 0) {
-                    running = customerMenu(accountId);
+                    result = customerMenu(&data, accountId);
+                    if (result <= 0) {
+                        running = 0;
+                    }
                 }
                 break;
             case 2:
-                registerCustomer();
+                result = registerCustomer(&data);
                 break;
             case 3:
-                accountId = login(MANAGER_ROLE);
+                accountId = login(&data, MANAGER_ROLE);
                 if (accountId == -1) {
                     running = 0;
                 } else if (accountId > 0) {
-                    running = managerMenu();
+                    result = managerMenu(&data);
+                    if (result <= 0) {
+                        running = 0;
+                    }
                 }
                 break;
             case 0:
@@ -126,20 +137,19 @@ int main(void)
                 running = 0;
                 break;
         }
-    }
-
-    /* 只有加载成功后才保存。保存失败时可以选择重试。 */
-    if (loaded == 1) {
-        while (saveData() != 1) {
-            printf("Save failed. 1. Retry  0. Exit without saving\n");
-            if (readInt("Choice: ", 0, 1) != 1) {
-                printf("Data was not saved.\n");
-                return 1;
-            }
+        if (result == -1) {
+            printf("Save failed. Stop using the program and check shop_backup.txt.\n");
+            return 1;             /* 不再调用 saveData，避免覆盖有效备份。 */
         }
     }
+
     if (ferror(stdin)) {
         printf("There was an input error.\n");
+        return 1;
+    }
+    /* 正常结束只保存一次。失败后退出，不允许重复写入或重试。 */
+    if (saveData(&data) != 1) {
+        printf("Data was not saved. Check shop_backup.txt before restarting.\n");
         return 1;
     }
     printf("Goodbye.\n");
