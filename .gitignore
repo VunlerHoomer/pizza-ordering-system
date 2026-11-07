@@ -1,13 +1,6 @@
-# Build output and personal runtime data
-/build/
-/data/runtime/
-*.o
+/pizza
 *.exe
+*.o
 *.dSYM/
+/build/
 .DS_Store
-.env
-.env.*
-!.env.example
-*.log
-*.zip
-*.rar

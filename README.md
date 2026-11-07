@@ -1,75 +1,97 @@
 # Pizza Ordering System
 
-SOE103 2026–27 五人小组项目，C11 控制台程序。
+SOE103 小组作业，使用 C 语言制作一个披萨店点餐程序。
 
-**当前版本：成员 A 框架已实现，B–E 业务功能待接入。**
+目前完成了成员 A 的主菜单、登录入口、顾客/店长菜单和输入检查。
+其他成员的文件已经留好函数，带 TODO 的部分还需要各自完成。
 
-已实现顾客/店长菜单、登录结果校验、会话与退出登录、12 个操作的角色校验及模块分发、
-整数/文本/金额/确认输入、启动加载与退出保存流程、错误提示、VS Code 构建和回归测试。
-真实注册/身份验证、菜单数据、订单/余额和存储/统计仍由 B–E 实现，返回明确的“暂未提供”状态。
+## 文件与分工
 
-## 在 VS Code 中使用
+所有代码放在同一层目录，方便找到和一起编译。
 
-打开本项目文件夹：
+| 成员 | 文件 | 负责内容 |
+|---|---|---|
+| A | `main.c`、`input.c` | 主菜单、角色菜单、输入检查、整合程序 |
+| B | `account.c` | 注册、核对登录信息、查看/修改顾客资料 |
+| C | `pizza.c` | 显示/编辑菜单、设置价格、计算价格 |
+| D | `order.c` | 下单、充值、订单历史 |
+| E | `file.c` | 读写文件、销售统计 |
+| 共同 | `project.h` | 函数声明；以后需要共用的结构体也放这里 |
+| 共同 | `report.md` | 报告草稿和测试记录 |
 
-- `Cmd+Shift+B`（Windows：`Ctrl+Shift+B`）：构建正常程序。
-- 命令面板 → `Tasks: Run Task` → `Pizza: Run`：运行正常程序。
-- `Pizza: Demo`：演示 A 的两种角色菜单，使用独立的测试替身。
-- `Pizza: Test`：运行 A 的自动化测试（需要 Python 3）。
+`.vscode/tasks.json` 只用来配置编译和运行，平时不用改。
 
-macOS / Linux（需要 C 编译器与 Make）：
+## 编译运行
+
+在 VS Code 中打开这个文件夹。Mac 按 Cmd+Shift+B，Windows 按 Ctrl+Shift+B 编译。
+命令面板选择 `Tasks: Run Task` → `Run` 可以编译并运行。
+需要电脑中已经安装 GCC（Mac 的 gcc 命令也可能实际使用 Clang）。
+
+Mac/Linux 终端：
 
 ```sh
-make run
-make demo
-make test
+gcc -std=c11 -Wall main.c input.c account.c pizza.c order.c file.c -o pizza
+./pizza
 ```
 
-正常程序：`build/pizza-ordering-system`。独立演示：`build/pizza-demo`。
-**演示账户只在演示程序中生效，不保存数据，不产生真实订单或扣款。**
-
-| 演示角色 | 账号 | 密码 |
-|---|---|---|
-| 顾客 | 1001 | customer-demo |
-| 店长 | 9001 | manager-demo |
-
-Windows（需要 GCC/MinGW-w64；测试另需 Python 3）：
+Windows 终端（需要安装 MinGW-w64/GCC 并加入 PATH）：
 
 ```powershell
-./build.ps1
-./build/pizza-ordering-system.exe
-./build.ps1 -Mode demo
-./build/pizza-demo.exe
-./build.ps1 -Mode test
+gcc -std=c11 -Wall main.c input.c account.c pizza.c order.c file.c -o pizza.exe
+./pizza.exe
 ```
 
-Windows 脚本和任务已配置，仍需 Windows 实机验证。Mac 原生构建不是 Windows `.exe`。
-最终提交的 `.exe` 应包含全组完成的真实业务功能，不能拿演示程序代替。
+本次已在 Mac 验证，Windows 仍需组员实机检查。提交作业时需要经过验证的 Windows `.exe`。
 
-## 五人代码归属
+## 程序怎样连接
 
-| 成员 | 主要文件 | 工作 |
-|---|---|---|
-| A | `main.c`、`ui.c`、`app.c`、`input.c`、构建脚本 | 框架、身份状态、权限、输入、整合 |
-| B | `account.c` | 注册、真实身份验证、顾客资料管理 |
-| C | `menu.c`、`pricing.c` | 菜单和价格 |
-| D | `order.c`、`wallet.c` | 订单、充值、扣款、历史 |
-| E | `storage.c`、`stats.c` | 文件存储和销售统计 |
+`main()` 先调用 `loadData()`，然后显示首页。登录时调用 B 的 `checkLogin()`。
+验证通过才进入顾客或店长菜单。菜单使用 `switch` 直接调用对应函数。
+例如顾客选择下单时调用 `placeOrder(customerId)`，D 使用传入的编号查找该顾客。
+选择退出登录后，菜单函数直接返回首页；下一次进入菜单必须重新登录。
 
-接口在 `include/`。A 已给 B–E 增加可编译的接入函数占位；这些函数没有业务实现。
-`tests/demo_modules.c` 只能用于演示/测试，不属于实际业务实现。
+当前 `checkLogin()` 还没有实现，所以正常程序会提示暂时不能登录。
+项目没有内置测试账户或独立演示版本，不会把未实现的功能当成成功。
 
-## 文档
+## 组内先约定这些规则
 
-- [成员 A 交付范围与接入步骤](docs/MEMBER_A.md)
-- [操作说明](docs/MANUAL.md)
-- [接口与数据约定](docs/INTERFACES.md)
-- [Problem Specification 报告草稿](docs/PROBLEM_SPECIFICATION.md)
-- [系统结构及程序流程](docs/ARCHITECTURE.md)
-- [A 的测试记录](tests/MEMBER_A_RESULTS.md)
-- [五人分工与时间表](docs/TEAM_PLAN.md)
-- [GitHub 同步操作](docs/COLLABORATION.md)
-- [全组报告模板](docs/REPORT_OUTLINE.md)
+- 账号范围为 1–999999，输入 0 取消登录；密码暂定最多 31 字节。
+- `checkLogin()` 必须同时检查账号、密码和真实角色；通过才返回 1。
+- `readInt()` 只用于非负整数范围，返回 -1 表示输入结束，要退出当前输入流程。
+- `readText()` 返回 1 表示读到一行，0 表示输入结束或读取出错。
+- 顾客资料、订单、菜单可以先用固定大小的结构体数组存放，再用文件保存；具体字段由相关成员商定。
+- 金额建议统一用整数分，例如 1050 表示 10.50 元。价格、余额和订单使用同一种单位。
+- 订单要保留成交时的价格；改菜单价格不能改变旧订单。
+- 充值和下单应及时保存，不能只依赖最后退出时保存。
+- `loadData()` 返回 1 表示成功，0 表示读取错误，-1 表示暂未实现；读取错误后不会覆盖保存。
+- `saveData()` 只有真正保存成功才返回 1，失败返回 0。
 
-正式任务书截止时间：2026-12-13 23:59；公告截图年份有冲突，请向老师核实。
-最终交付包括 PDF 报告、源码、Windows `.exe`、数据、操作说明、全员签名贡献表。
+每个人主要改自己的 `.c` 文件。需要改 `project.h` 的函数参数时，先在组里说清楚。
+不需要为自己的模块另外写一个正式 `main()`，所有 `.c` 一起编译。
+
+## GitHub 同步
+
+先提交自己当前的修改，再同步主分支。日常流程是：
+
+```sh
+git pull --ff-only
+# 修改自己的文件并编译检查
+git add main.c input.c
+# 上面的文件名换成自己这次修改的文件
+git commit -m "Improve menu input"
+git push
+```
+
+在 VS Code 的“源代码管理”里也可以完成暂存、提交和推送。
+多人同时改同一文件前先协调；公共头文件有变动时及时同步。不要强制推送覆盖别人的修改。
+
+## 进度安排
+
+- 11 月 15 日前：各人完成自己的基础功能。
+- 11 月 22 日前：串通注册、充值、下单和历史查询。
+- 11 月 29 日前：补齐店长管理和统计。
+- 12 月 6 日前：完成测试和报告初稿。
+- 12 月 10 日前：在目标电脑运行，准备完整提交包。
+- 12 月 11–12 日：签贡献表并提前提交。
+
+正式任务书截止时间为 2026 年 12 月 13 日 23:59；公告截图年份有冲突，需向老师核实。
