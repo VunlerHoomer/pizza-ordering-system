@@ -96,16 +96,17 @@ gcc -std=c11 -Wall main.c input.c account.c pizza.c order.c file.c -o pizza.exe
 ```sh
 git switch main
 git pull --ff-only
-git switch -c codex/member-b-account
-# 修改自己的代码，完成 CODE_REVIEW.md 中的自查
+git switch -c member-b-account
+# 修改代码，先按 CODE_REVIEW.md 用 AI 自查，再本人复核并实际测试
 git add account.c
 # 如有其他相关修改，也逐个加入暂存区
 git commit -m "Implement customer registration"
 git push -u origin HEAD
 ```
 
-不同成员/任务使用不同分支名，例如 `codex/member-c-menu`、`codex/member-d-order`、`codex/member-e-files`。
-到 GitHub 点击 `Compare & pull request`，目标分支选 main，说明修改内容和测试结果，选择组长为 Reviewer。
+不同成员/任务使用不同分支名，例如 `member-c-menu`、`member-d-order`、`member-e-files`。
+提交前先让 AI 按 CODE_REVIEW.md 检查，再由本人逐项复核、编译和实际测试。
+到 GitHub 点击 `Compare & pull request`，目标分支选 main，说明修改内容和实际测试结果，选择组长为 Reviewer。
 收到修改意见后，继续在同一分支修改、提交、推送；原 PR 会更新，不用重新建一个 PR。
 
 ### 组长如何审查
