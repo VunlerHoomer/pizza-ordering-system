@@ -78,21 +78,51 @@ gcc -std=c11 -Wall main.c input.c account.c pizza.c order.c file.c -o pizza.exe
 每个人主要改自己的 `.c` 文件。需要改 `project.h` 的函数参数时，先在组里说清楚。
 不需要为自己的模块另外写一个正式 `main()`，所有 `.c` 一起编译。
 
-## GitHub 同步
+## GitHub 协作与组长审查
 
-先提交自己当前的修改，再同步主分支。日常流程是：
+**设置状态：审查配置已准备，main 的强制保护尚未启用；目前不能把流程约定当成权限限制。**
+
+组员可以上传个人分支，但修改进入 main 前必须先交组长审查。全部文件的审查负责人配置为 `@VunlerHoomer`。
+
+### 邀请组员
+
+组长进入仓库 `Settings → Collaborators → Add people`，输入组员的 GitHub 用户名发送邀请。
+组员接受后，用自己的 GitHub 账号克隆仓库。先启用下述保护，再授予组员写权限。
+
+### 组员提交功能
+
+开始新任务时，确保工作区没有未提交修改，再从最新 main 创建个人分支：
 
 ```sh
+git switch main
 git pull --ff-only
-# 修改自己的文件并编译检查
-git add main.c input.c
-# 上面的文件名换成自己这次修改的文件
-git commit -m "Improve menu input"
-git push
+git switch -c codex/member-b-account
+# 修改自己的代码，完成 CODE_REVIEW.md 中的自查
+git add account.c
+# 如有其他相关修改，也逐个加入暂存区
+git commit -m "Implement customer registration"
+git push -u origin HEAD
 ```
 
-在 VS Code 的“源代码管理”里也可以完成暂存、提交和推送。
-多人同时改同一文件前先协调；公共头文件有变动时及时同步。不要强制推送覆盖别人的修改。
+不同成员/任务使用不同分支名，例如 `codex/member-c-menu`、`codex/member-d-order`、`codex/member-e-files`。
+到 GitHub 点击 `Compare & pull request`，目标分支选 main，说明修改内容和测试结果，选择组长为 Reviewer。
+收到修改意见后，继续在同一分支修改、提交、推送；原 PR 会更新，不用重新建一个 PR。
+
+### 组长如何审查
+
+打开 PR 的 `Files changed` 查看改动，按 CODE_REVIEW.md 检查并运行关键功能。
+需要修改时选择 `Review changes → Request changes`；通过时选择 `Approve`，再合并到 main。
+组员之后同步 main，下一项任务重新创建分支，不在 main 上直接改代码上传。
+
+### main 要启用的保护
+
+- 必须通过 Pull Request 合并，至少需要 1 个批准。
+- 必须由 CODEOWNERS 指定的 `VunlerHoomer` 批准，其他组员的批准不能代替。
+- PR 增加新提交后，旧批准失效，需要重新审查。
+- 合并前解决审查讨论，禁止组员强制推送或删除 main。
+
+保护针对普通协作者；仓库所有者保留管理员管理和绕过权限，方便处理自己的提交。
+仅有 CODEOWNERS 文件不能强制审查，还必须有受支持的仓库套餐/可见性以及已启用的分支保护。
 
 ## 进度安排
 
