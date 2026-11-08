@@ -80,7 +80,7 @@ gcc -std=c11 -Wall main.c input.c account.c pizza.c order.c file.c -o pizza.exe
 
 ## GitHub 协作与组长审查
 
-**设置状态：审查配置已准备，main 的强制保护尚未启用；目前不能把流程约定当成权限限制。**
+**设置状态：仓库已公开，main 已启用强制 PR 和代码所有者审查；组员必须经 VunlerHoomer 批准才能合入。**
 
 组员可以上传个人分支，但修改进入 main 前必须先交组长审查。全部文件的审查负责人配置为 `@VunlerHoomer`。
 
