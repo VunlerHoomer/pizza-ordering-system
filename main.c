@@ -100,7 +100,6 @@ int main(void)
         printf("Cannot load data. The program will close without saving.\n");
         return 1;
     }
-
     while (running) {
         printf("\n=== Pizza Ordering System ===\n");
         printf("1. Customer login\n2. Register\n3. Manager login\n0. Exit\n");
