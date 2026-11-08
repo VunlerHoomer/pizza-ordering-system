@@ -226,7 +226,7 @@ static int addOption(struct ShopData *data)
             id = options[i].id;
         }
     }
-    if (id >= MAX_OPTION_ID) {
+    if (id > MAX_OPTION_ID) {
         printf("No option number is left. Nothing was added.\n");
         return 0;
     }
