@@ -226,7 +226,8 @@ static int addOption(struct ShopData *data)
             id = options[i].id;
         }
     }
-    if (id > MAX_OPTION_ID) {
+    /* 在递增前检查：已有 999999 就拒绝；999998 仍可生成 999999。 */
+    if (id >= MAX_OPTION_ID) {
         printf("No option number is left. Nothing was added.\n");
         return 0;
     }
