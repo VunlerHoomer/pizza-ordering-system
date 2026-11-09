@@ -4,3 +4,7 @@
 *.dSYM/
 /build/
 .DS_Store
+/shop.txt
+/shop_backup.txt
+/shop.tmp
+/shop_backup.tmp

@@ -130,4 +130,4 @@ project.h    共用的结构体、容量常量和函数声明
 - 修改数据的操作返回：`1` 已保存成功、`0` 取消或无改动、`-1` 保存失败。失败后停止继续写入，保留备份。
 - `loadData()` 和 `saveData()` 返回 `1` 才表示成功；加载失败不进入业务菜单。
 
-当前 A 的框架和公共接口已完成，B–E 的主要业务仍待实现。运行方法见 [README](README.md)，报告与测试记录写在 [report.md](report.md)。
+当前 A 的框架、C 的菜单价格及 E 的文件统计已有实现。E 的文件格式、保存策略和故障恢复以 [E 实现说明](docs/e-storage-plan.md) 为准。首次开发运行需将 shop.example.txt 复制为 shop.txt。B、D 的主要业务以及真实账户和订单的整体验收仍待完成。运行方法见 [README](README.md)，报告与测试记录写在 [report.md](report.md)。
