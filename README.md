@@ -2,13 +2,15 @@
 
 SOE103 小组作业，使用 C 语言制作一个披萨店点餐程序。
 
-项目框架、五人分工和课内知识的使用方法见 [PRD](PRD.md)。提交功能前按 [代码自查规范](CODE_REVIEW.md) 检查。A 的框架和公共接口已完成，B–E 的主要业务仍待实现。
+项目框架、五人分工和课内知识的使用方法见 [PRD](PRD.md)。提交功能前按 [代码自查规范](CODE_REVIEW.md) 检查。A 的框架、C 的菜单价格和 E 的文件统计已有实现，B、D 的主要业务仍待完成和联调。
 
-目前完成了成员 A 的主菜单、登录入口、顾客/店长菜单、输入检查、共享数据传递和失败退出。
-其他成员的接口及两个循环查找辅助函数已准备好，带 TODO 的业务还需要各自完成。
+目前完成了成员 A 的主菜单、登录入口、顾客/店长菜单、输入检查、共享数据传递和失败退出。E 已实现版本化文本加载、校验、备份保存和销售统计。其余带 TODO 的业务还需要各自完成。
 
-**当前 E 的文件加载尚未实现，运行后会明确提示并退出，不会进入菜单。**
-这是按 PRD 在没有有效数据时停止启动；E 完成加载并返回 1 后，才开放正常流程。
+首次开发运行，先复制 `shop.example.txt` 为 `shop.txt`，再编译运行。模板包含初始菜单，顾客和订单为空。成功标志是进入首页菜单。当前 B 的真实注册和登录、D 的订单业务仍待实现。
+
+Mac/Linux 使用 `cp shop.example.txt shop.txt`，Windows PowerShell 使用 `Copy-Item shop.example.txt shop.txt`。仅在新建的数据目录执行初始化。最终提交包需直接附上准备好的 `shop.txt`，并由 B 提供真实验收账户。
+
+程序以当前工作目录读写数据，按单进程、单终端运行。运行中的 `shop.txt`、备份和临时文件已加入忽略清单，组员共享初始模板。文件格式、恢复步骤和 B/D 交接见 [E 实现说明](docs/e-storage-plan.md)。
 
 ## 文件与分工
 
@@ -50,6 +52,8 @@ gcc -std=c11 -Wall main.c input.c account.c pizza.c order.c file.c -o pizza.exe
 
 本次已在 Mac 验证，Windows 仍需组员实机检查。提交作业时需要经过验证的 Windows `.exe`。
 
+E 的应用代码也通过 `-std=c90 -Wall -Wextra -Wpedantic -Werror` 检查。Windows 文件替换使用一个 C API 适配函数，已在 E 实现说明中单列其课外依据。
+
 ## 程序怎样连接
 
 `main()` 创建一份 `struct ShopData data = {0};`，调用 `loadData(&data)`，加载成功后显示首页。登录调用 B 的 `checkLogin(&data, ...)`。
@@ -57,8 +61,7 @@ gcc -std=c11 -Wall main.c input.c account.c pizza.c order.c file.c -o pizza.exe
 例如顾客选择下单时调用 `placeOrder(data, customerId)`，D 通过 data 访问同一份数据，用编号查找当前顾客。
 选择退出登录后，菜单函数直接返回首页；下一次进入菜单必须重新登录。
 
-当前 `checkLogin()` 也还没有真实验证功能，不能把占位返回值改成 1 来假装登录成功。
-项目没有内置测试账户或独立演示版本，不会把未实现的功能当成成功。
+当前 `checkLogin()` 还没有真实验证功能，不能把占位返回值改成 1 来假装登录成功。初始模板未包含顾客账户，店长身份的数据来源待 B 确认。
 
 ## 组内先约定这些规则
 

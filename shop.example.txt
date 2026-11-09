@@ -1,0 +1,52 @@
+PIZZA_SHOP_V1
+CUSTOMERS
+0
+TYPES
+2
+1
+Thin and Crispy
+2000
+1
+2
+Hand Tossed
+2500
+1
+SIZES
+4
+1
+10 inch
+0
+1
+2
+12 inch
+500
+1
+3
+14 inch
+1000
+1
+4
+16 inch
+1500
+1
+TOPPINGS
+4
+1
+Supreme
+1000
+1
+2
+Hawaiian
+1200
+1
+3
+Margherita
+800
+1
+4
+BBQ Chicken
+1300
+1
+ORDERS
+0
+END
