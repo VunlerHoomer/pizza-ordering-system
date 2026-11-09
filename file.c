@@ -1,8 +1,9 @@
-/* E: L7 structures, L8 files, L3/L5 loops and totals.
- * File format and recovery instructions: docs/e-storage-plan.md.
+/* 成员 E：读文件、写文件和统计。
+ * 数据格式见 sample.txt，使用和恢复方法见 README.md。
+ * 主要使用结构体、数组、循环和文件读写；少量补充函数在使用处说明。
  */
-#include <errno.h>
-#include <limits.h>
+#include <errno.h>  /* 补充：区分文件不存在和没有权限。 */
+#include <limits.h> /* 补充：INT_MAX 表示本机 int 的最大值。 */
 #include <stdio.h>
 #include <string.h>
 #ifdef _WIN32
@@ -14,23 +15,24 @@
 #define NEW_FILE "shop.tmp"
 #define BACKUP_FILE "shop_backup.txt"
 #define NEW_BACKUP "shop_backup.tmp"
-#define FILE_HEADER "PIZZA_SHOP_V1"
-#define MAX_RECORD_ID 999999
-#define MAX_OPTION_PRICE 999999
-#define MAX_UNIT_PRICE (3 * MAX_OPTION_PRICE)
+#define FILE_TITLE "PIZZA_SHOP_V1"
+#define MAX_ID 999999
+#define MAX_PRICE 999999
+#define MAX_UNIT_PRICE (3 * MAX_PRICE)
 
-/* 文件内 static 状态，防止调用方在保存失败后意外重试。 */
-static int storageReady = 0;
-static int storageStopped = 0;
+/* 1 表示已加载数据；保存出错后必须关闭程序，不能重试。 */
+static int fileLoaded = 0;
+static int saveFailed = 0;
 
-struct SalesTotal {
+struct Sales {
     int orders;
     int quantity;
     int yuan;
     int cents;
 };
 
-static int validText(const char text[], int capacity)
+/* 检查字符串非空、没有控制字符，并且能放进数组。 */
+static int checkText(const char text[], int capacity)
 {
     int i;
     unsigned char ch;
@@ -47,14 +49,14 @@ static int validText(const char text[], int capacity)
     return 0;
 }
 
-static int invalidRecord(const char kind[], int index)
+static int dataError(const char kind[], int index)
 {
     fprintf(stderr, "Invalid %s record %d. Check IDs, fields and amounts.\n",
             kind, index + 1);
     return 0;
 }
 
-static int validOptions(const struct MenuOption options[], int count)
+static int checkOptions(const struct MenuOption options[], int count)
 {
     int i, j;
 
@@ -63,15 +65,15 @@ static int validOptions(const struct MenuOption options[], int count)
         return 0;
     }
     for (i = 0; i < count; i++) {
-        if (options[i].id < 1 || options[i].id > MAX_RECORD_ID ||
-            !validText(options[i].name, sizeof(options[i].name)) ||
-            options[i].price < 0 || options[i].price > MAX_OPTION_PRICE ||
+        if (options[i].id < 1 || options[i].id > MAX_ID ||
+            !checkText(options[i].name, sizeof(options[i].name)) ||
+            options[i].price < 0 || options[i].price > MAX_PRICE ||
             (options[i].active != 0 && options[i].active != 1)) {
-            return invalidRecord("menu", i);
+            return dataError("menu", i);
         }
         for (j = 0; j < i; j++) {
             if (options[j].id == options[i].id) {
-                return invalidRecord("duplicate menu ID", i);
+                return dataError("duplicate menu ID", i);
             }
         }
     }
@@ -79,7 +81,7 @@ static int validOptions(const struct MenuOption options[], int count)
 }
 
 /* 检查历史引用时也查找停用记录，旧订单按自己的成交信息校验。 */
-static int validData(const struct ShopData *data)
+static int checkData(const struct ShopData *data)
 {
     int i, j;
     const struct Customer *customer;
@@ -91,25 +93,25 @@ static int validData(const struct ShopData *data)
         fprintf(stderr, "Invalid data pointer or record count.\n");
         return 0;
     }
-    if (!validOptions(data->types, data->typeCount) ||
-        !validOptions(data->sizes, data->sizeCount) ||
-        !validOptions(data->toppings, data->toppingCount)) {
+    if (!checkOptions(data->types, data->typeCount) ||
+        !checkOptions(data->sizes, data->sizeCount) ||
+        !checkOptions(data->toppings, data->toppingCount)) {
         return 0;
     }
     for (i = 0; i < data->customerCount; i++) {
         customer = &data->customers[i];
-        if (customer->id < 1 || customer->id > MAX_RECORD_ID ||
-            !validText(customer->name, sizeof(customer->name)) ||
-            !validText(customer->phone, sizeof(customer->phone)) ||
-            !validText(customer->password, sizeof(customer->password)) ||
+        if (customer->id < 1 || customer->id > MAX_ID ||
+            !checkText(customer->name, sizeof(customer->name)) ||
+            !checkText(customer->phone, sizeof(customer->phone)) ||
+            !checkText(customer->password, sizeof(customer->password)) ||
             customer->balance < 0 ||
             (customer->active != 0 && customer->active != 1) ||
             (!customer->active && customer->balance != 0)) {
-            return invalidRecord("customer", i);
+            return dataError("customer", i);
         }
         for (j = 0; j < i; j++) {
             if (data->customers[j].id == customer->id) {
-                return invalidRecord("duplicate customer ID", i);
+                return dataError("duplicate customer ID", i);
             }
         }
     }
@@ -121,20 +123,20 @@ static int validData(const struct ShopData *data)
             findOptionIndex(data->sizes, data->sizeCount, order->sizeId) < 0 ||
             findOptionIndex(data->toppings, data->toppingCount,
                             order->toppingId) < 0 ||
-            !validText(order->typeName, sizeof(order->typeName)) ||
-            !validText(order->sizeName, sizeof(order->sizeName)) ||
-            !validText(order->toppingName, sizeof(order->toppingName)) ||
+            !checkText(order->typeName, sizeof(order->typeName)) ||
+            !checkText(order->sizeName, sizeof(order->sizeName)) ||
+            !checkText(order->toppingName, sizeof(order->toppingName)) ||
             order->quantity < 1 || order->quantity > 10 ||
             order->unitPrice < 0 || order->unitPrice > MAX_UNIT_PRICE) {
-            return invalidRecord("order", i);
+            return dataError("order", i);
         }
         /* 单价和数量的上限保证乘法在目标平台的 int 范围内。 */
         if (order->total != order->unitPrice * order->quantity) {
-            return invalidRecord("order total", i);
+            return dataError("order total", i);
         }
         for (j = 0; j < i; j++) {
             if (data->orders[j].id == order->id) {
-                return invalidRecord("duplicate order ID", i);
+                return dataError("duplicate order ID", i);
             }
         }
     }
@@ -177,16 +179,17 @@ static int readNumber(FILE *file, int min, int max, int *result)
     return parseNumber(text, min, max, result);
 }
 
-static int readLabel(FILE *file, const char expected[])
+static int readTitle(FILE *file, const char expected[])
 {
     char text[64];
 
     if (!readLine(file, text, sizeof(text))) {
         return 0;
     }
-    /* 兼容 Windows 文本编辑器可能写出的 UTF-8 BOM。 */
-    if (strcmp(expected, FILE_HEADER) == 0 &&
-        strncmp(text, "\357\273\277", 3) == 0) {
+    /* 有的编辑器会在文件开头加这三个字节（UTF-8 BOM），读标题时跳过。 */
+    if (strcmp(expected, FILE_TITLE) == 0 &&
+        (unsigned char)text[0] == 239 &&
+        (unsigned char)text[1] == 187 && (unsigned char)text[2] == 191) {
         return strcmp(text + 3, expected) == 0;
     }
     return strcmp(text, expected) == 0;
@@ -197,14 +200,14 @@ static int readOptions(FILE *file, const char label[],
 {
     int i;
 
-    if (!readLabel(file, label) ||
+    if (!readTitle(file, label) ||
         !readNumber(file, 0, MAX_OPTIONS, count)) {
         return 0;
     }
     for (i = 0; i < *count; i++) {
-        if (!readNumber(file, 1, MAX_RECORD_ID, &options[i].id) ||
+        if (!readNumber(file, 1, MAX_ID, &options[i].id) ||
             !readLine(file, options[i].name, sizeof(options[i].name)) ||
-            !readNumber(file, 0, MAX_OPTION_PRICE, &options[i].price) ||
+            !readNumber(file, 0, MAX_PRICE, &options[i].price) ||
             !readNumber(file, 0, 1, &options[i].active)) {
             return 0;
         }
@@ -212,19 +215,20 @@ static int readOptions(FILE *file, const char label[],
     return 1;
 }
 
-static int readRecords(FILE *file, struct ShopData *data)
+/* 按文件中的固定顺序读取：顾客、三类菜单、订单。 */
+static int readData(FILE *file, struct ShopData *data)
 {
     int i;
     struct Customer *customer;
     struct Order *order;
 
-    if (!readLabel(file, FILE_HEADER) || !readLabel(file, "CUSTOMERS") ||
+    if (!readTitle(file, FILE_TITLE) || !readTitle(file, "CUSTOMERS") ||
         !readNumber(file, 0, MAX_CUSTOMERS, &data->customerCount)) {
         return 0;
     }
     for (i = 0; i < data->customerCount; i++) {
         customer = &data->customers[i];
-        if (!readNumber(file, 1, MAX_RECORD_ID, &customer->id) ||
+        if (!readNumber(file, 1, MAX_ID, &customer->id) ||
             !readLine(file, customer->name, sizeof(customer->name)) ||
             !readLine(file, customer->phone, sizeof(customer->phone)) ||
             !readLine(file, customer->password, sizeof(customer->password)) ||
@@ -236,17 +240,17 @@ static int readRecords(FILE *file, struct ShopData *data)
     if (!readOptions(file, "TYPES", data->types, &data->typeCount) ||
         !readOptions(file, "SIZES", data->sizes, &data->sizeCount) ||
         !readOptions(file, "TOPPINGS", data->toppings, &data->toppingCount) ||
-        !readLabel(file, "ORDERS") ||
+        !readTitle(file, "ORDERS") ||
         !readNumber(file, 0, MAX_ORDERS, &data->orderCount)) {
         return 0;
     }
     for (i = 0; i < data->orderCount; i++) {
         order = &data->orders[i];
         if (!readNumber(file, 1, INT_MAX, &order->id) ||
-            !readNumber(file, 1, MAX_RECORD_ID, &order->customerId) ||
-            !readNumber(file, 1, MAX_RECORD_ID, &order->typeId) ||
-            !readNumber(file, 1, MAX_RECORD_ID, &order->sizeId) ||
-            !readNumber(file, 1, MAX_RECORD_ID, &order->toppingId) ||
+            !readNumber(file, 1, MAX_ID, &order->customerId) ||
+            !readNumber(file, 1, MAX_ID, &order->typeId) ||
+            !readNumber(file, 1, MAX_ID, &order->sizeId) ||
+            !readNumber(file, 1, MAX_ID, &order->toppingId) ||
             !readLine(file, order->typeName, sizeof(order->typeName)) ||
             !readLine(file, order->sizeName, sizeof(order->sizeName)) ||
             !readLine(file, order->toppingName, sizeof(order->toppingName)) ||
@@ -256,10 +260,11 @@ static int readRecords(FILE *file, struct ShopData *data)
             return 0;
         }
     }
-    return readLabel(file, "END") && fgetc(file) == EOF && !ferror(file);
+    return readTitle(file, "END") && fgetc(file) == EOF && !ferror(file);
 }
 
-static int readShopFile(const char path[], struct ShopData *data)
+/* 先读到临时变量，全部正确后才交给调用者。 */
+static int readFile(const char path[], struct ShopData *data)
 {
     FILE *file;
     struct ShopData loaded = {0};
@@ -270,9 +275,9 @@ static int readShopFile(const char path[], struct ShopData *data)
         fprintf(stderr, "Cannot open %s for reading.\n", path);
         return 0;
     }
-    success = readRecords(file, &loaded);
+    success = readData(file, &loaded);
     if (success) {
-        success = validData(&loaded);
+        success = checkData(&loaded);
     }
     if (!success) {
         fprintf(stderr, "%s is incomplete or invalid near byte %ld.\n",
@@ -305,13 +310,14 @@ static int writeOptions(FILE *file, const char label[],
     return 1;
 }
 
-static int writeRecords(FILE *file, const struct ShopData *data)
+/* 与读取顺序相同，每个字段写一行，名称可以包含空格。 */
+static int writeData(FILE *file, const struct ShopData *data)
 {
     int i;
     const struct Customer *customer;
     const struct Order *order;
 
-    if (fprintf(file, "%s\nCUSTOMERS\n%d\n", FILE_HEADER,
+    if (fprintf(file, "%s\nCUSTOMERS\n%d\n", FILE_TITLE,
                 data->customerCount) < 0) {
         return 0;
     }
@@ -342,7 +348,7 @@ static int writeRecords(FILE *file, const struct ShopData *data)
     return fprintf(file, "END\n") >= 0;
 }
 
-static int writeShopFile(const char path[], const struct ShopData *data)
+static int writeFile(const char path[], const struct ShopData *data)
 {
     FILE *file;
     int success;
@@ -352,7 +358,7 @@ static int writeShopFile(const char path[], const struct ShopData *data)
         fprintf(stderr, "Cannot create %s.\n", path);
         return 0;
     }
-    success = writeRecords(file, data);
+    success = writeData(file, data);
     if (fflush(file) == EOF) {
         success = 0;
     }
@@ -437,7 +443,7 @@ static int sameFile(const char leftPath[], const char rightPath[])
 }
 
 /* 发现上次中断遗留的文件时，先交由用户按恢复说明核查。 */
-static int temporaryAbsent(const char path[])
+static int noTempFile(const char path[])
 {
     FILE *file;
 
@@ -458,7 +464,10 @@ static int temporaryAbsent(const char path[])
     return 1;
 }
 
-/* Windows 的 C 运行库 rename 不能覆盖已有目标，用小段平台适配处理。 */
+/* 补充知识仅集中在这里：Windows 用 MoveFileExA，其他系统用 rename。
+ * 两者都在新文件准备好后替换旧文件，失败时不会先删掉旧文件。
+ * 不能简化成 remove(target) 再 rename，否则失败时可能丢失正式文件。
+ */
 static int replaceFile(const char source[], const char target[])
 {
 #ifdef _WIN32
@@ -479,17 +488,17 @@ static int replaceFile(const char source[], const char target[])
 
 int loadData(struct ShopData *data)
 {
-    storageReady = 0;
-    if (data == NULL || storageStopped) {
+    fileLoaded = 0;
+    if (data == NULL || saveFailed) {
         return 0;
     }
-    if (!temporaryAbsent(NEW_FILE) || !temporaryAbsent(NEW_BACKUP) ||
-        !readShopFile(SHOP_FILE, data)) {
+    if (!noTempFile(NEW_FILE) || !noTempFile(NEW_BACKUP) ||
+        !readFile(SHOP_FILE, data)) {
         fprintf(stderr, "Loading stopped. Check shop.txt and shop_backup.txt.\n"
-                "For a new test folder, copy shop.example.txt to shop.txt.\n");
+                "For a new test folder, copy sample.txt to shop.txt.\n");
         return 0;
     }
-    storageReady = 1;
+    fileLoaded = 1;
     return 1;
 }
 
@@ -498,18 +507,28 @@ int saveData(const struct ShopData *data)
     struct ShopData checked = {0};
     int comparison;
 
-    if (storageStopped) {
+    if (saveFailed) {
         fprintf(stderr, "Storage already failed. Close the program.\n");
         return 0;
     }
-    /* 先标记失败状态，每个失败出口都会阻止本进程继续保存。 */
-    storageStopped = 1;
-    if (!storageReady || !validData(data) ||
-        !temporaryAbsent(NEW_FILE) || !temporaryAbsent(NEW_BACKUP) ||
-        !readShopFile(SHOP_FILE, &checked) ||
-        !writeShopFile(NEW_FILE, data) || !readShopFile(NEW_FILE, &checked)) {
+    /* 1. 检查加载状态和数据。后面任一步出错，都不能再保存。 */
+    saveFailed = 1;
+    if (!fileLoaded || !checkData(data)) {
         return 0;
     }
+    if (!noTempFile(NEW_FILE) || !noTempFile(NEW_BACKUP)) {
+        return 0;
+    }
+    if (!readFile(SHOP_FILE, &checked)) {
+        return 0;
+    }
+
+    /* 2. 先把新数据完整写到临时文件，再读一遍确认。 */
+    if (!writeFile(NEW_FILE, data) || !readFile(NEW_FILE, &checked)) {
+        return 0;
+    }
+
+    /* 3. 内容没有变化时，不替换已有备份。 */
     comparison = sameFile(NEW_FILE, SHOP_FILE);
     if (comparison < 0) {
         fprintf(stderr, "Cannot compare the pending save with shop.txt.\n");
@@ -520,28 +539,30 @@ int saveData(const struct ShopData *data)
             fprintf(stderr, "Cannot remove the unchanged pending save.\n");
             return 0;
         }
-        storageStopped = 0;
+        saveFailed = 0;
         return 1;                 /* 正常退出时保留上一份有用备份。 */
     }
+    /* 4. 先准备好旧数据的备份。 */
     if (!copyFile(SHOP_FILE, NEW_BACKUP) ||
         sameFile(SHOP_FILE, NEW_BACKUP) != 1 ||
-        !readShopFile(NEW_BACKUP, &checked)) {
+        !readFile(NEW_BACKUP, &checked)) {
         fprintf(stderr, "Backup preparation failed. shop.txt was preserved.\n");
         return 0;
     }
+    /* 5. 都检查成功后，才替换备份和正式文件。 */
     if (!replaceFile(NEW_BACKUP, BACKUP_FILE) ||
         !replaceFile(NEW_FILE, SHOP_FILE)) {
         fprintf(stderr, "Save stopped. Inspect the main, backup and temporary files.\n");
         return 0;
     }
-    storageStopped = 0;
+    saveFailed = 0;
     return 1;
 }
 
 /* 每单先拆成元与分，再累加并进位，避免分的总和超出 32 位 int。
  * 当前 500 单、每单最多 10 个的容量下，元的总和仍在范围内。
  */
-static void addSale(struct SalesTotal *total, const struct Order *order)
+static void addSale(struct Sales *total, const struct Order *order)
 {
     total->orders++;
     total->quantity += order->quantity;
@@ -553,11 +574,11 @@ static void addSale(struct SalesTotal *total, const struct Order *order)
 
 void showStatistics(const struct ShopData *data)
 {
-    struct SalesTotal overall = {0};
-    struct SalesTotal toppings[MAX_OPTIONS] = {{0}};
+    struct Sales overall = {0};
+    struct Sales toppings[MAX_OPTIONS] = {{0}};
     int i, j, index, largest = 0, barLength;
 
-    if (!validData(data)) {
+    if (!checkData(data)) {
         fprintf(stderr, "Statistics unavailable because records are invalid.\n");
         return;
     }
@@ -570,16 +591,14 @@ void showStatistics(const struct ShopData *data)
             largest = toppings[index].quantity;
         }
     }
-    printf("\n+-----------------------------------------------------------------------+\n");
-    printf("|                         STORE SALES REPORT                            |\n");
-    printf("+-----------------------------------------------------------------------+\n");
+    printf("\n--- Sales statistics ---\n");
     printf("  Completed orders : %d\n", overall.orders);
     printf("  Pizzas sold      : %d\n", overall.quantity);
     printf("  Sales revenue    : %d.%02d yuan\n", overall.yuan, overall.cents);
     printf("  Scope            : all recorded sales\n\n");
     printf("  %-31s %6s %6s %15s\n", "Topping (current name)",
            "Orders", "Pizzas", "Revenue / yuan");
-    printf("  ---------------------------------------------------------------------\n");
+    printf("\n");
     for (i = 0; i < data->toppingCount; i++) {
         printf("  %-31s %6d %6d %12d.%02d\n", data->toppings[i].name,
                toppings[i].orders, toppings[i].quantity,
@@ -600,6 +619,6 @@ void showStatistics(const struct ShopData *data)
     if (overall.orders == 0) {
         printf("  No completed orders yet.\n");
     }
-    printf("  ---------------------------------------------------------------------\n");
+    printf("\n");
     printf("  Deposits are tracked in account balances.\n");
 }
