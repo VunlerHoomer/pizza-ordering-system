@@ -37,7 +37,7 @@ struct Order {
     int total;
 };
 
-/* main 只创建一份数据，其他函数通过参数访问它。 */
+/* main 里放一份数据，大家的函数都用这一份。 */
 struct ShopData {
     struct Customer customers[MAX_CUSTOMERS];
     int customerCount;
@@ -54,10 +54,10 @@ struct ShopData {
 /* A：readText 返回 1 成功、0 输入结束/出错；readInt 返回 -1 表示结束。 */
 int readText(const char prompt[], char text[], int size);
 int readInt(const char prompt[], int min, int max);
-/* 只接受非负十进制数字串；成功返回 1，失败返回 0 且不改变 result。 */
+/* 只收 0 到 9 组成的数字。成功返回 1，失败返回 0，失败不改 result。 */
 int parseNumber(const char text[], int min, int max, int *result);
 
-/* 修改数据的操作：1 已保存，0 无改动/取消，-1 保存失败，必须退出。 */
+/* 改数据的函数：1 已保存，0 没有改，-1 没存成功，要结束程序。 */
 /* B：登录返回 1 成功、0 失败；查找返回下标或 -1。 */
 int checkLogin(const struct ShopData *data, int accountId,
                const char password[], int role);
@@ -74,7 +74,7 @@ int editPizzaMenu(struct ShopData *data);
 int editPrices(struct ShopData *data);
 int calculatePrice(const struct ShopData *data, int type, int size, int topping);
 
-/* D：使用当前顾客编号，不能重新指定另一名顾客。 */
+/* D：传进来的就是当前顾客编号，不要再问要改谁的账号。 */
 int placeOrder(struct ShopData *data, int customerId);
 void showOrderHistory(const struct ShopData *data, int customerId);
 int depositMoney(struct ShopData *data, int customerId);

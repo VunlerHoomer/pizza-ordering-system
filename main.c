@@ -1,8 +1,8 @@
-/* 成员 A：程序入口、登录入口、顾客菜单和店长菜单。 */
+/* A：主菜单。顾客和店长登录后，去各自的菜单。 */
 #include <stdio.h>
 #include "project.h"
 
-/* 返回账号表示登录成功，0 表示取消或失败，-1 表示输入结束。 */
+/* 登录成功就返回账号；0 表示没登录，-1 表示输入结束。 */
 static int login(const struct ShopData *data, int role)
 {
     int accountId;
@@ -19,7 +19,7 @@ static int login(const struct ShopData *data, int role)
         return 0;
     }
 
-    /* 选择店长入口不代表有权限，必须由 B 核对真实角色。 */
+    /* 不能选了店长菜单就直接进去，还要让 B 检查账号和身份。 */
     if (checkLogin(data, accountId, password, role) == 1) {
         printf("Login successful.\n");
         return accountId;
@@ -28,7 +28,7 @@ static int login(const struct ShopData *data, int role)
     return 0;
 }
 
-/* 菜单返回：1 退出登录，0 输入结束，-1 保存失败。 */
+/* 返回 1 回首页，0 结束输入，-1 表示保存出错，要退出程序。 */
 static int customerMenu(struct ShopData *data, int customerId)
 {
     int choice, result;
@@ -54,7 +54,7 @@ static int customerMenu(struct ShopData *data, int customerId)
                 return 1;
         }
         if (result == -1) {
-            return -1;            /* 交给 main 退出，不能再进行下一笔操作。 */
+            return -1;            /* 存不下来就退出，不继续做下一笔操作。 */
         }
     }
 }
@@ -91,6 +91,7 @@ static int managerMenu(struct ShopData *data)
 
 int main(void)
 {
+    /* 各个部分共用这一份数据，传地址过去就能修改原来的内容。 */
     struct ShopData data = {0};
     int choice, accountId;
     int running = 1;
@@ -138,7 +139,7 @@ int main(void)
         }
         if (result == -1) {
             printf("Save failed. Stop using the program and check shop_backup.txt.\n");
-            return 1;             /* 不再调用 saveData，避免覆盖有效备份。 */
+            return 1;             /* 这里直接结束，不能再存一次把备份盖掉。 */
         }
     }
 
@@ -146,7 +147,7 @@ int main(void)
         printf("There was an input error.\n");
         return 1;
     }
-    /* 正常结束只保存一次。失败后退出，不允许重复写入或重试。 */
+    /* 正常退出时保存一次。如果出错，先保留文件，交给人检查。 */
     if (saveData(&data) != 1) {
         printf("Data was not saved. Check shop_backup.txt before restarting.\n");
         return 1;

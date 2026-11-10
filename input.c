@@ -1,53 +1,53 @@
-/* 成员 A：使用字符、数组和循环处理输入。 */
+/* A：把输入先检查好，其他部分就不用重复处理了。 */
 #include <stdio.h>
 #include "project.h"
 
-/* 读完一整行，即使超长也不把剩余字符留给下一次输入。 */
+/* 一次读一行。太长的部分也要读掉，不然会影响下一次输入。 */
 int readText(const char prompt[], char text[], int size)
 {
-    int ch, length, tooLong, invalid, hasInput, hasCR;
+    int ch, len, tooLong, badChar, readSomething, hasCR;
 
     if (prompt == NULL || text == NULL || size < 1) {
         return 0;
     }
     while (1) {
-        length = 0;
+        len = 0;
         tooLong = 0;
-        invalid = 0;
-        hasInput = 0;
+        badChar = 0;
+        readSomething = 0;
         hasCR = 0;
         printf("%s", prompt);
         fflush(stdout);
         text[0] = '\0';
 
-        /* getchar 返回 int，才能同时表示字符和 EOF。 */
+        /* ch 用 int，除了普通字符，还要接收 EOF。 */
         while ((ch = getchar()) != '\n' && ch != EOF) {
-            hasInput = 1;
+            readSomething = 1;
             if (hasCR) {
-                invalid = 1;       /* 回车只能出现在行末。 */
+                badChar = 1;       /* 回车后又有别的字符，这一行不接受。 */
             }
             if (ch == '\r') {
-                hasCR = 1;        /* 兼容 Windows 的 CRLF 行尾。 */
+                hasCR = 1;        /* Windows 行尾可能先有回车，再有换行。 */
                 continue;
             }
             if (ch < 32 || ch == 127) {
-                invalid = 1;       /* 拒绝字符串中的控制字符。 */
+                badChar = 1;       /* 这些不是要输入的普通文字，不接受。 */
             }
-            if (length < size - 1) {
-                text[length++] = (char)ch;
+            if (len < size - 1) {
+                text[len++] = (char)ch;
             } else {
                 tooLong = 1;
             }
         }
-        text[length] = '\0';
+        text[len] = '\0';
         if (ferror(stdin)) {
             text[0] = '\0';
             return 0;
         }
-        if (ch == EOF && !hasInput) {
+        if (ch == EOF && !readSomething) {
             return 0;
         }
-        if (tooLong || invalid) {
+        if (tooLong || badChar) {
             text[0] = '\0';
             printf("Enter at most %d characters without control characters.\n", size - 1);
             continue;
@@ -56,10 +56,10 @@ int readText(const char prompt[], char text[], int size)
     }
 }
 
-/* 成功才写回结果；在乘 10 之前检查上界，避免整数溢出。 */
+/* 把数字字符串转成整数。全部检查成功后才改 result。 */
 int parseNumber(const char text[], int min, int max, int *result)
 {
-    int i, digit, value = 0;
+    int i, digit, number = 0;
 
     if (text == NULL || result == NULL || min < 0 || min > max) {
         return 0;
@@ -72,15 +72,16 @@ int parseNumber(const char text[], int min, int max, int *result)
             return 0;
         }
         digit = text[i] - '0';
-        if (value > max / 10 || (value == max / 10 && digit > max % 10)) {
+        /* 先判断下一步会不会超过 max，不能乘完 10 再检查。 */
+        if (number > max / 10 || (number == max / 10 && digit > max % 10)) {
             return 0;
         }
-        value = value * 10 + digit;
+        number = number * 10 + digit;
     }
-    if (value < min) {
+    if (number < min) {
         return 0;
     }
-    *result = value;
+    *result = number;             /* 用地址把结果带回去。 */
     return 1;
 }
 
