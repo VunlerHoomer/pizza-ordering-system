@@ -6,10 +6,10 @@
 /*
  * project.h 的 Customer 没有角色字段，checkLogin 只能按账号编号区分店长和顾客。
  * 约定：店长 id = 1，顾客 id 从 2 开始自动分配。
- * 如果 A 的 main.c 用了别的约定，只改这一行。
+ * sample.txt 已放入店长示例账号。改店长编号时，样例和说明也要一起改。
  */
 #define MANAGER_ID 1
-#define MAX_CUSTOMER_ID 9999
+#define MAX_CUSTOMER_ID 999999
 
 /* 把“分”显示成“元”，例如 1050 -> 10.50 元 */
 static void printMoney(int cents)

@@ -1,6 +1,12 @@
 PIZZA_SHOP_V1
 CUSTOMERS
+1
+1
+Shop Manager
+00000000000
+manager123
 0
+1
 TYPES
 2
 1
