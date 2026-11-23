@@ -37,6 +37,7 @@ int main(void)
 
     file = fopen("shop.txt", "w");
     if (file == NULL) { return 1; }
+    /* 保留旧 V1 样例，顺便检查自动生成用户名和升级保存。 */
     fprintf(file, "PIZZA_SHOP_V1\nCUSTOMERS\n1\n");
     fprintf(file, "2\nTest Customer\n00123456789\ntest123\n10000\n1\n");
     fprintf(file, "TYPES\n1\n1\nThin\n2000\n1\n");

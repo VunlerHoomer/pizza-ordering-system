@@ -15,7 +15,8 @@
 #define NEW_FILE "shop.tmp"
 #define BACKUP_FILE "shop_backup.txt"
 #define NEW_BACKUP "shop_backup.tmp"
-#define FILE_TITLE "PIZZA_SHOP_V1"
+#define FILE_TITLE "PIZZA_SHOP_V2"
+#define OLD_FILE_TITLE "PIZZA_SHOP_V1"
 #define MAX_ID 999999
 #define MAX_PRICE 999999
 #define MAX_UNIT_PRICE (3 * MAX_PRICE)
@@ -101,6 +102,7 @@ static int checkData(const struct ShopData *data)
     for (i = 0; i < data->customerCount; i++) {
         customer = &data->customers[i];
         if (customer->id < 1 || customer->id > MAX_ID ||
+            !checkUsername(customer->username) ||
             !checkText(customer->name, sizeof(customer->name)) ||
             !checkText(customer->phone, sizeof(customer->phone)) ||
             !checkText(customer->password, sizeof(customer->password)) ||
@@ -112,6 +114,9 @@ static int checkData(const struct ShopData *data)
         for (j = 0; j < i; j++) {
             if (data->customers[j].id == customer->id) {
                 return dataError("duplicate customer ID", i);
+            }
+            if (strcmp(data->customers[j].username, customer->username) == 0) {
+                return dataError("duplicate username", i);
             }
         }
     }
@@ -186,12 +191,6 @@ static int readTitle(FILE *file, const char expected[])
     if (!readLine(file, text, sizeof(text))) {
         return 0;
     }
-    /* 有的编辑器会在文件开头加这三个字节（UTF-8 BOM），读标题时跳过。 */
-    if (strcmp(expected, FILE_TITLE) == 0 &&
-        (unsigned char)text[0] == 239 &&
-        (unsigned char)text[1] == 187 && (unsigned char)text[2] == 191) {
-        return strcmp(text + 3, expected) == 0;
-    }
     return strcmp(text, expected) == 0;
 }
 
@@ -215,21 +214,59 @@ static int readOptions(FILE *file, const char label[],
     return 1;
 }
 
+/* 旧文件没有用户名，按编号生成，原密码、余额和订单不变。 */
+static void setOldUsername(struct Customer *customer)
+{
+    char digits[10];
+    int id, n = 0, i;
+    if (customer->id == 1) {
+        strcpy(customer->username, "admin");
+        return;
+    }
+    id = customer->id;
+    while (id > 0) {
+        digits[n++] = (char)('0' + id % 10);
+        id /= 10;
+    }
+    strcpy(customer->username, "user");
+    for (i = 0; i < n; i++) { customer->username[4 + i] = digits[n - 1 - i]; }
+    customer->username[4 + n] = '\0';
+}
+
+/* V1 没有用户名，V2 在每个账户编号后多一行用户名。 */
+static int readVersion(FILE *file)
+{
+    char title[64];
+    int start = 0;
+    if (!readLine(file, title, sizeof(title))) { return 0; }
+    if ((unsigned char)title[0] == 239 && (unsigned char)title[1] == 187 &&
+        (unsigned char)title[2] == 191) { start = 3; }
+    if (strcmp(title + start, FILE_TITLE) == 0) { return 2; }
+    if (strcmp(title + start, OLD_FILE_TITLE) == 0) { return 1; }
+    return 0;
+}
+
 /* 按文件中的固定顺序读取：顾客、三类菜单、订单。 */
 static int readData(FILE *file, struct ShopData *data)
 {
-    int i;
+    int i, version;
     struct Customer *customer;
     struct Order *order;
 
-    if (!readTitle(file, FILE_TITLE) || !readTitle(file, "CUSTOMERS") ||
+    version = readVersion(file);
+    if (version == 0 || !readTitle(file, "CUSTOMERS") ||
         !readNumber(file, 0, MAX_CUSTOMERS, &data->customerCount)) {
         return 0;
     }
     for (i = 0; i < data->customerCount; i++) {
         customer = &data->customers[i];
-        if (!readNumber(file, 1, MAX_ID, &customer->id) ||
-            !readLine(file, customer->name, sizeof(customer->name)) ||
+        if (!readNumber(file, 1, MAX_ID, &customer->id)) { return 0; }
+        if (version == 2) {
+            if (!readLine(file, customer->username, sizeof(customer->username))) { return 0; }
+        } else {
+            setOldUsername(customer);
+        }
+        if (!readLine(file, customer->name, sizeof(customer->name)) ||
             !readLine(file, customer->phone, sizeof(customer->phone)) ||
             !readLine(file, customer->password, sizeof(customer->password)) ||
             !readNumber(file, 0, INT_MAX, &customer->balance) ||
@@ -323,8 +360,8 @@ static int writeData(FILE *file, const struct ShopData *data)
     }
     for (i = 0; i < data->customerCount; i++) {
         customer = &data->customers[i];
-        if (fprintf(file, "%d\n%s\n%s\n%s\n%d\n%d\n", customer->id,
-                    customer->name, customer->phone, customer->password,
+        if (fprintf(file, "%d\n%s\n%s\n%s\n%s\n%d\n%d\n", customer->id,
+                    customer->username, customer->name, customer->phone, customer->password,
                     customer->balance, customer->active) < 0) {
             return 0;
         }

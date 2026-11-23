@@ -43,17 +43,44 @@ int findCustomerIndex(const struct ShopData *data, int customerId)
     return -1;
 }
 
-int checkLogin(const struct ShopData *data, int accountId,
+/* 用户名用 1 到 31 个英文字母、数字或下划线，区分大小写。 */
+int checkUsername(const char username[])
+{
+    int i;
+    char ch;
+    if (username == NULL || username[0] == '\0') { return 0; }
+    for (i = 0; i < 32; i++) {
+        ch = username[i];
+        if (ch == '\0') { return 1; }
+        if (!((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
+              (ch >= '0' && ch <= '9') || ch == '_')) { return 0; }
+    }
+    return 0;
+}
+
+/* 停用账户的用户名也保留，不能拿去给其他人注册。 */
+static int findUserIndex(const struct ShopData *data, const char username[])
+{
+    int i;
+    if (data == NULL || !checkUsername(username) ||
+        data->customerCount < 0 || data->customerCount > MAX_CUSTOMERS) { return -1; }
+    for (i = 0; i < data->customerCount; i++) {
+        if (strcmp(data->customers[i].username, username) == 0) { return i; }
+    }
+    return -1;
+}
+
+int checkLogin(const struct ShopData *data, const char username[],
                const char password[], int role)
 {
     int pos;
 
-    if (data == NULL || password == NULL || accountId <= 0 || password[0] == '\0' ||
+    if (data == NULL || !checkUsername(username) || password == NULL || password[0] == '\0' ||
         (role != CUSTOMER_ROLE && role != MANAGER_ROLE)) {
         return 0;
     }
 
-    pos = findCustomerIndex(data, accountId);
+    pos = findUserIndex(data, username);
     if (pos < 0) {
         return 0;                 /* 账号不存在 */
     }
@@ -72,13 +99,14 @@ int checkLogin(const struct ShopData *data, int accountId,
         return 0;
     }
 
-    return 1;
+    return data->customers[pos].id;
 }
 
 int registerCustomer(struct ShopData *data)
 {
     struct Customer newCustomer = {0};
     struct Customer emptyCustomer = {0};
+    char username[sizeof(newCustomer.username)];
     char name[sizeof(newCustomer.name)];
     char phone[sizeof(newCustomer.phone)];
     char password[sizeof(newCustomer.password)];
@@ -99,6 +127,18 @@ int registerCustomer(struct ShopData *data)
         return 0;
     }
 
+    if (!readText("用户名（字母、数字或下划线）：", username, (int)sizeof(username))) {
+        return 0;
+    }
+    if (!checkUsername(username)) {
+        printf("用户名必须为 1 到 31 个英文字母、数字或下划线。\n");
+        return 0;
+    }
+    if (findUserIndex(data, username) >= 0) {
+        printf("这个用户名已被使用，请换一个。\n");
+        return 0;
+    }
+
     if (!readText("姓名：", name, (int)sizeof(name))) {
         return 0;
     }
@@ -115,6 +155,7 @@ int registerCustomer(struct ShopData *data)
 
     newCustomer.id = id;
     /* readText 已按同样大小的数组限制了长度，这里可以直接复制。 */
+    strcpy(newCustomer.username, username);
     strcpy(newCustomer.name, name);
     strcpy(newCustomer.phone, phone);
     strcpy(newCustomer.password, password);
@@ -132,7 +173,7 @@ int registerCustomer(struct ShopData *data)
         return -1;
     }
 
-    printf("注册成功，你的账号是 %d，请记住。\n", id);
+    printf("注册成功，用户名是 %s，账户编号是 %d。请用用户名登录。\n", username, id);
     return 1;
 }
 
@@ -151,6 +192,7 @@ void showCustomer(const struct ShopData *data, int customerId)
     }
 
     printf("编号：%d\n", data->customers[pos].id);
+    printf("用户名：%s\n", data->customers[pos].username);
     printf("姓名：%s\n", data->customers[pos].name);
     printf("电话：%s\n", data->customers[pos].phone);
     printf("余额：");
@@ -161,10 +203,12 @@ void showCustomer(const struct ShopData *data, int customerId)
 int editCustomer(struct ShopData *data, int customerId)
 {
     struct Customer oldCustomer;
+    char username[sizeof(oldCustomer.username)];
     char name[sizeof(oldCustomer.name)];
     char phone[sizeof(oldCustomer.phone)];
     char password[sizeof(oldCustomer.password)];
     int pos;
+    int sameName;
     int changed = 0;
 
     if (data == NULL) {
@@ -178,6 +222,18 @@ int editCustomer(struct ShopData *data, int customerId)
     }
 
     printf("直接回车表示该项不改。\n");
+    if (!readText("新用户名：", username, (int)sizeof(username))) { return 0; }
+    if (username[0] != '\0') {
+        if (!checkUsername(username)) {
+            printf("用户名必须为 1 到 31 个英文字母、数字或下划线。\n");
+            return 0;
+        }
+        sameName = findUserIndex(data, username);
+        if (sameName >= 0 && sameName != pos) {
+            printf("这个用户名已被其他账户使用，不能修改。\n");
+            return 0;
+        }
+    }
     if (!readText("新姓名：", name, (int)sizeof(name))) {
         return 0;
     }
@@ -192,6 +248,10 @@ int editCustomer(struct ShopData *data, int customerId)
     oldCustomer = data->customers[pos];
 
     /* 输入长度已经检查过；空行表示不改，不空才复制。 */
+    if (username[0] != '\0' && strcmp(username, oldCustomer.username) != 0) {
+        strcpy(data->customers[pos].username, username);
+        changed = 1;
+    }
     if (name[0] != '\0' && strcmp(name, oldCustomer.name) != 0) {
         strcpy(data->customers[pos].name, name);
         changed = 1;

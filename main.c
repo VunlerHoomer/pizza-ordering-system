@@ -6,11 +6,14 @@
 static int login(const struct ShopData *data, int role)
 {
     int accountId;
+    char username[32];
     char password[32];
 
-    accountId = readInt("Account number (0 to cancel): ", 0, 999999);
-    if (accountId <= 0) {
-        return accountId;
+    if (!readText("Username (empty to cancel): ", username, sizeof(username))) {
+        return -1;
+    }
+    if (username[0] == '\0') {
+        return 0;
     }
     if (!readText("Password (empty to cancel): ", password, sizeof(password))) {
         return -1;
@@ -20,7 +23,8 @@ static int login(const struct ShopData *data, int role)
     }
 
     /* 不能选了店长菜单就直接进去，还要让 B 检查账号和身份。 */
-    if (checkLogin(data, accountId, password, role) == 1) {
+    accountId = checkLogin(data, username, password, role);
+    if (accountId > 0) {
         printf("Login successful.\n");
         return accountId;
     }

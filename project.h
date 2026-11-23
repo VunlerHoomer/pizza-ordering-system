@@ -9,6 +9,7 @@
 
 struct Customer {
     int id;
+    char username[32];          /* 登录用户名，不能与别的账户重复。 */
     char name[50];
     char phone[20];
     char password[32];
@@ -58,8 +59,9 @@ int readInt(const char prompt[], int min, int max);
 int parseNumber(const char text[], int min, int max, int *result);
 
 /* 改数据的函数：1 已保存，0 没有改，-1 没存成功，要结束程序。 */
-/* B：登录返回 1 成功、0 失败；查找返回下标或 -1。 */
-int checkLogin(const struct ShopData *data, int accountId,
+/* B：登录成功返回账户编号，失败返回 0；查找返回下标或 -1。 */
+int checkUsername(const char username[]);
+int checkLogin(const struct ShopData *data, const char username[],
                const char password[], int role);
 int findCustomerIndex(const struct ShopData *data, int customerId);
 int registerCustomer(struct ShopData *data);

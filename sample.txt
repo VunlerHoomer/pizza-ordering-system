@@ -1,7 +1,8 @@
-PIZZA_SHOP_V1
+PIZZA_SHOP_V2
 CUSTOMERS
 1
 1
+admin
 Shop Manager
 00000000000
 manager123
