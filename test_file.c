@@ -38,7 +38,7 @@ int main(void)
     file = fopen("shop.txt", "w");
     if (file == NULL) { return 1; }
     fprintf(file, "PIZZA_SHOP_V1\nCUSTOMERS\n1\n");
-    fprintf(file, "1\nTest Customer\n00123456789\ntest123\n10000\n1\n");
+    fprintf(file, "2\nTest Customer\n00123456789\ntest123\n10000\n1\n");
     fprintf(file, "TYPES\n1\n1\nThin\n2000\n1\n");
     fprintf(file, "SIZES\n1\n1\n12 inch\n500\n1\n");
     fprintf(file, "TOPPINGS\n1\n1\nBBQ Chicken\n1200\n1\n");
@@ -58,7 +58,7 @@ int main(void)
 
     /* 模拟一笔已经确认的订单，只检查保存，不代替 D 的业务实现。 */
     data.orders[0].id = 1;
-    data.orders[0].customerId = 1;
+    data.orders[0].customerId = 2;
     data.orders[0].typeId = 1;
     data.orders[0].sizeId = 1;
     data.orders[0].toppingId = 1;
