@@ -1,12 +1,10 @@
-/* 成员 B：账户管理 */
+/* B：注册、登录、查看和修改顾客资料。 */
 #include <stdio.h>
 #include <string.h>
 #include "project.h"
 
-/*
- * project.h 的 Customer 没有角色字段，checkLogin 只能按账号编号区分店长和顾客。
- * 约定：店长 id = 1，顾客 id 从 2 开始自动分配。
- * sample.txt 已放入店长示例账号。改店长编号时，样例和说明也要一起改。
+/* 账号 1 留给店长，顾客从 2 开始。
+ * sample.txt 中已经放了店长账号，改编号时要一起改样例和说明。
  */
 #define MANAGER_ID 1
 #define MAX_CUSTOMER_ID 999999
@@ -17,8 +15,8 @@ static void printMoney(int cents)
     printf("%d.%02d 元", cents / 100, cents % 100);
 }
 
-/* 分配一个未被占用的顾客编号；找不到返回 -1 */
-static int allocateCustomerId(const struct ShopData *data)
+/* 从 2 开始找一个没用过的编号。找不到就返回 -1。 */
+static int findNewId(const struct ShopData *data)
 {
     int id;
 
@@ -39,7 +37,7 @@ int findCustomerIndex(const struct ShopData *data, int customerId)
     }
     for (i = 0; i < data->customerCount; i++) {
         if (data->customers[i].id == customerId) {
-            return i;             /* 停用记录也能找到，供历史和管理功能使用。 */
+            return i;             /* 停用的也算已有账号，不能把编号分给新人。 */
         }
     }
     return -1;
@@ -48,29 +46,29 @@ int findCustomerIndex(const struct ShopData *data, int customerId)
 int checkLogin(const struct ShopData *data, int accountId,
                const char password[], int role)
 {
-    int index;
+    int pos;
 
     if (data == NULL || password == NULL || accountId <= 0 || password[0] == '\0' ||
         (role != CUSTOMER_ROLE && role != MANAGER_ROLE)) {
         return 0;
     }
 
-    index = findCustomerIndex(data, accountId);
-    if (index < 0) {
+    pos = findCustomerIndex(data, accountId);
+    if (pos < 0) {
         return 0;                 /* 账号不存在 */
     }
-    if (strcmp(data->customers[index].password, password) != 0) {
+    if (strcmp(data->customers[pos].password, password) != 0) {
         return 0;                 /* 密码错误 */
     }
-    if (data->customers[index].active != 1) {
+    if (data->customers[pos].active != 1) {
         return 0;                 /* 账号已停用 */
     }
 
-    /* 核对真实角色：店长只能用 MANAGER_ROLE 登录，顾客只能用 CUSTOMER_ROLE 登录 */
-    if (role == MANAGER_ROLE && data->customers[index].id != MANAGER_ID) {
+    /* 还要检查是不是选对了入口，顾客不能从店长入口登录。 */
+    if (role == MANAGER_ROLE && data->customers[pos].id != MANAGER_ID) {
         return 0;
     }
-    if (role == CUSTOMER_ROLE && data->customers[index].id == MANAGER_ID) {
+    if (role == CUSTOMER_ROLE && data->customers[pos].id == MANAGER_ID) {
         return 0;
     }
 
@@ -79,12 +77,13 @@ int checkLogin(const struct ShopData *data, int accountId,
 
 int registerCustomer(struct ShopData *data)
 {
-    struct Customer c;
-    char name[sizeof(c.name)];
-    char phone[sizeof(c.phone)];
-    char password[sizeof(c.password)];
+    struct Customer newCustomer = {0};
+    struct Customer emptyCustomer = {0};
+    char name[sizeof(newCustomer.name)];
+    char phone[sizeof(newCustomer.phone)];
+    char password[sizeof(newCustomer.password)];
     int id;
-    int index;
+    int pos;
 
     if (data == NULL) {
         return 0;
@@ -94,7 +93,7 @@ int registerCustomer(struct ShopData *data)
         return 0;
     }
 
-    id = allocateCustomerId(data);
+    id = findNewId(data);
     if (id < 0) {
         printf("没有可用的顾客编号。\n");
         return 0;
@@ -114,25 +113,22 @@ int registerCustomer(struct ShopData *data)
         return 0;
     }
 
-    memset(&c, 0, sizeof(c));
-    c.id = id;
-    strncpy(c.name, name, sizeof(c.name) - 1);
-    c.name[sizeof(c.name) - 1] = '\0';
-    strncpy(c.phone, phone, sizeof(c.phone) - 1);
-    c.phone[sizeof(c.phone) - 1] = '\0';
-    strncpy(c.password, password, sizeof(c.password) - 1);
-    c.password[sizeof(c.password) - 1] = '\0';
-    c.balance = 0;
-    c.active = 1;
+    newCustomer.id = id;
+    /* readText 已按同样大小的数组限制了长度，这里可以直接复制。 */
+    strcpy(newCustomer.name, name);
+    strcpy(newCustomer.phone, phone);
+    strcpy(newCustomer.password, password);
+    newCustomer.balance = 0;
+    newCustomer.active = 1;
 
-    index = data->customerCount;
-    data->customers[index] = c;
+    pos = data->customerCount;
+    data->customers[pos] = newCustomer;
     data->customerCount++;
 
     if (saveData(data) != 1) {
-        /* 保存失败：撤销本次新增 */
+        /* 没存下来，把人数减回去，刚加的位置清空。 */
         data->customerCount--;
-        memset(&data->customers[index], 0, sizeof(struct Customer));
+        data->customers[pos] = emptyCustomer;
         return -1;
     }
 
@@ -142,41 +138,41 @@ int registerCustomer(struct ShopData *data)
 
 void showCustomer(const struct ShopData *data, int customerId)
 {
-    int index;
+    int pos;
 
     if (data == NULL) {
         return;
     }
 
-    index = findCustomerIndex(data, customerId);
-    if (index < 0) {
+    pos = findCustomerIndex(data, customerId);
+    if (pos < 0) {
         printf("顾客不存在。\n");
         return;
     }
 
-    printf("编号：%d\n", data->customers[index].id);
-    printf("姓名：%s\n", data->customers[index].name);
-    printf("电话：%s\n", data->customers[index].phone);
+    printf("编号：%d\n", data->customers[pos].id);
+    printf("姓名：%s\n", data->customers[pos].name);
+    printf("电话：%s\n", data->customers[pos].phone);
     printf("余额：");
-    printMoney(data->customers[index].balance);
-    printf("\n状态：%s\n", data->customers[index].active ? "启用" : "停用");
+    printMoney(data->customers[pos].balance);
+    printf("\n状态：%s\n", data->customers[pos].active ? "启用" : "停用");
 }
 
 int editCustomer(struct ShopData *data, int customerId)
 {
-    struct Customer old;
-    char name[sizeof(old.name)];
-    char phone[sizeof(old.phone)];
-    char password[sizeof(old.password)];
-    int index;
+    struct Customer oldCustomer;
+    char name[sizeof(oldCustomer.name)];
+    char phone[sizeof(oldCustomer.phone)];
+    char password[sizeof(oldCustomer.password)];
+    int pos;
     int changed = 0;
 
     if (data == NULL) {
         return 0;
     }
 
-    index = findCustomerIndex(data, customerId);
-    if (index < 0) {
+    pos = findCustomerIndex(data, customerId);
+    if (pos < 0) {
         printf("顾客不存在。\n");
         return 0;
     }
@@ -192,24 +188,20 @@ int editCustomer(struct ShopData *data, int customerId)
         return 0;
     }
 
-    old = data->customers[index];
+    /* 先留住原资料，保存失败时要改回去。 */
+    oldCustomer = data->customers[pos];
 
-    if (name[0] != '\0' && strcmp(name, old.name) != 0) {
-        strncpy(data->customers[index].name, name,
-                sizeof(data->customers[index].name) - 1);
-        data->customers[index].name[sizeof(data->customers[index].name) - 1] = '\0';
+    /* 输入长度已经检查过；空行表示不改，不空才复制。 */
+    if (name[0] != '\0' && strcmp(name, oldCustomer.name) != 0) {
+        strcpy(data->customers[pos].name, name);
         changed = 1;
     }
-    if (phone[0] != '\0' && strcmp(phone, old.phone) != 0) {
-        strncpy(data->customers[index].phone, phone,
-                sizeof(data->customers[index].phone) - 1);
-        data->customers[index].phone[sizeof(data->customers[index].phone) - 1] = '\0';
+    if (phone[0] != '\0' && strcmp(phone, oldCustomer.phone) != 0) {
+        strcpy(data->customers[pos].phone, phone);
         changed = 1;
     }
-    if (password[0] != '\0' && strcmp(password, old.password) != 0) {
-        strncpy(data->customers[index].password, password,
-                sizeof(data->customers[index].password) - 1);
-        data->customers[index].password[sizeof(data->customers[index].password) - 1] = '\0';
+    if (password[0] != '\0' && strcmp(password, oldCustomer.password) != 0) {
+        strcpy(data->customers[pos].password, password);
         changed = 1;
     }
 
@@ -219,7 +211,7 @@ int editCustomer(struct ShopData *data, int customerId)
     }
 
     if (saveData(data) != 1) {
-        data->customers[index] = old;   /* 保存失败：恢复原值 */
+        data->customers[pos] = oldCustomer;   /* 没存成功，整条资料改回原来的。 */
         return -1;
     }
 
@@ -228,20 +220,20 @@ int editCustomer(struct ShopData *data, int customerId)
 
 int manageCustomer(struct ShopData *data, int operation)
 {
-    struct Customer old;
+    struct Customer oldCustomer;
     int id;
-    int index;
+    int pos;
 
     if (data == NULL) {
         return 0;
     }
 
-    /* 1 添加：复用注册逻辑，自动分配编号 */
+    /* 添加顾客和自己注册一样，用同一个函数。 */
     if (operation == 1) {
         return registerCustomer(data);
     }
 
-    /* 2 停用：余额必须为 0，保留记录，只改 active */
+    /* 停用前先看余额。记录还留着，只把 active 改成 0。 */
     if (operation == 2) {
         id = readInt("要停用的顾客编号：", 1, MAX_CUSTOMER_ID);
         if (id == -1) {
@@ -252,31 +244,31 @@ int manageCustomer(struct ShopData *data, int operation)
             return 0;
         }
 
-        index = findCustomerIndex(data, id);
-        if (index < 0) {
+        pos = findCustomerIndex(data, id);
+        if (pos < 0) {
             printf("顾客不存在。\n");
             return 0;
         }
-        if (data->customers[index].active != 1) {
+        if (data->customers[pos].active != 1) {
             printf("该顾客已经是停用状态。\n");
             return 0;
         }
-        if (data->customers[index].balance != 0) {
+        if (data->customers[pos].balance != 0) {
             printf("该顾客余额不为 0，不能停用。\n");
             return 0;
         }
 
-        old = data->customers[index];
-        data->customers[index].active = 0;
+        oldCustomer = data->customers[pos];
+        data->customers[pos].active = 0;
 
         if (saveData(data) != 1) {
-            data->customers[index] = old;
+            data->customers[pos] = oldCustomer;
             return -1;
         }
         return 1;
     }
 
-    /* 3 编辑：复用 editCustomer */
+    /* 选好顾客后，调用上面的修改资料函数。 */
     if (operation == 3) {
         id = readInt("要编辑的顾客编号：", 1, MAX_CUSTOMER_ID);
         if (id == -1) {
